@@ -232,6 +232,7 @@ END $$;
 -- Row Level Security (RLS) for user_achievements
 -- Enable RLS to satisfy Supabase security checks and protect data when using PostgREST
 ALTER TABLE public.user_achievements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_achievements FORCE ROW LEVEL SECURITY;
 
 -- Policies are idempotent via existence checks
 DO $$
@@ -280,6 +281,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_achievements TO authenticate
 -- RLS for other user-owned tables
 -- user_miners
 ALTER TABLE public.user_miners ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_miners FORCE ROW LEVEL SECURITY;
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -304,6 +306,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_miners TO authenticated;
 
 -- transactions
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transactions FORCE ROW LEVEL SECURITY;
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -328,6 +331,7 @@ GRANT SELECT, INSERT ON public.transactions TO authenticated;
 
 -- daily_games
 ALTER TABLE public.daily_games ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.daily_games FORCE ROW LEVEL SECURITY;
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -352,6 +356,7 @@ GRANT SELECT, INSERT ON public.daily_games TO authenticated;
 
 -- user_season_pass
 ALTER TABLE public.user_season_pass ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_season_pass FORCE ROW LEVEL SECURITY;
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -383,6 +388,7 @@ GRANT USAGE ON SCHEMA public TO anon;
 
 -- achievements (catalog) — public read
 ALTER TABLE public.achievements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.achievements FORCE ROW LEVEL SECURITY;
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -401,6 +407,7 @@ GRANT SELECT ON public.achievements TO anon, authenticated;
 
 -- miner_types (catalog) — public read
 ALTER TABLE public.miner_types ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.miner_types FORCE ROW LEVEL SECURITY;
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -419,6 +426,7 @@ GRANT SELECT ON public.miner_types TO anon, authenticated;
 
 -- seasons (catalog) — public read
 ALTER TABLE public.seasons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.seasons FORCE ROW LEVEL SECURITY;
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -437,6 +445,7 @@ GRANT SELECT ON public.seasons TO anon, authenticated;
 
 -- season_pass_rewards (catalog) — public read
 ALTER TABLE public.season_pass_rewards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.season_pass_rewards FORCE ROW LEVEL SECURITY;
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -455,6 +464,7 @@ GRANT SELECT ON public.season_pass_rewards TO anon, authenticated;
 
 -- leaderboard_entries — public read (no personal secrets, shows ranks)
 ALTER TABLE public.leaderboard_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.leaderboard_entries FORCE ROW LEVEL SECURITY;
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -473,6 +483,7 @@ GRANT SELECT ON public.leaderboard_entries TO anon, authenticated;
 
 -- users — sensitive; keep closed to public. Allow self-access for PostgREST and full backend access.
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users FORCE ROW LEVEL SECURITY;
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -497,6 +508,171 @@ GRANT SELECT, UPDATE ON public.users TO authenticated;
 
 -- sessions — internal only; restrict to backend
 ALTER TABLE public.sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sessions FORCE ROW LEVEL SECURITY;
+
+-- Generic backend/service policy to match USDT tables style (defense in depth)
+-- This keeps PostgREST exposure locked unless using service_role; direct backend (no JWT) remains allowed.
+DO $$
+BEGIN
+  -- Helper to create the same policy name across multiple tables idempotently
+  PERFORM 1;
+END $$;
+
+-- users
+DROP POLICY IF EXISTS allow_backend_or_service ON public.users;
+CREATE POLICY allow_backend_or_service ON public.users
+  FOR ALL
+  USING (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  )
+  WITH CHECK (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  );
+
+-- sessions
+DROP POLICY IF EXISTS allow_backend_or_service ON public.sessions;
+CREATE POLICY allow_backend_or_service ON public.sessions
+  FOR ALL
+  USING (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  )
+  WITH CHECK (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  );
+
+-- miner_types
+DROP POLICY IF EXISTS allow_backend_or_service ON public.miner_types;
+CREATE POLICY allow_backend_or_service ON public.miner_types
+  FOR ALL
+  USING (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  )
+  WITH CHECK (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  );
+
+-- achievements
+DROP POLICY IF EXISTS allow_backend_or_service ON public.achievements;
+CREATE POLICY allow_backend_or_service ON public.achievements
+  FOR ALL
+  USING (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  )
+  WITH CHECK (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  );
+
+-- seasons
+DROP POLICY IF EXISTS allow_backend_or_service ON public.seasons;
+CREATE POLICY allow_backend_or_service ON public.seasons
+  FOR ALL
+  USING (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  )
+  WITH CHECK (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  );
+
+-- season_pass_rewards
+DROP POLICY IF EXISTS allow_backend_or_service ON public.season_pass_rewards;
+CREATE POLICY allow_backend_or_service ON public.season_pass_rewards
+  FOR ALL
+  USING (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  )
+  WITH CHECK (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  );
+
+-- leaderboard_entries
+DROP POLICY IF EXISTS allow_backend_or_service ON public.leaderboard_entries;
+CREATE POLICY allow_backend_or_service ON public.leaderboard_entries
+  FOR ALL
+  USING (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  )
+  WITH CHECK (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  );
+
+-- user_season_pass
+DROP POLICY IF EXISTS allow_backend_or_service ON public.user_season_pass;
+CREATE POLICY allow_backend_or_service ON public.user_season_pass
+  FOR ALL
+  USING (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  )
+  WITH CHECK (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  );
+
+-- user_miners
+DROP POLICY IF EXISTS allow_backend_or_service ON public.user_miners;
+CREATE POLICY allow_backend_or_service ON public.user_miners
+  FOR ALL
+  USING (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  )
+  WITH CHECK (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  );
+
+-- user_achievements
+DROP POLICY IF EXISTS allow_backend_or_service ON public.user_achievements;
+CREATE POLICY allow_backend_or_service ON public.user_achievements
+  FOR ALL
+  USING (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  )
+  WITH CHECK (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  );
+
+-- transactions
+DROP POLICY IF EXISTS allow_backend_or_service ON public.transactions;
+CREATE POLICY allow_backend_or_service ON public.transactions
+  FOR ALL
+  USING (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  )
+  WITH CHECK (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  );
+
+-- daily_games
+DROP POLICY IF EXISTS allow_backend_or_service ON public.daily_games;
+CREATE POLICY allow_backend_or_service ON public.daily_games
+  FOR ALL
+  USING (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  )
+  WITH CHECK (
+    current_setting('request.jwt.claims', true) IS NULL
+    OR auth.role() = 'service_role'
+  );
 DO $$
 BEGIN
   IF NOT EXISTS (
